@@ -1,19 +1,35 @@
-from flask import Flask, jsonify
-import requests
-import urllib3
+const https = require("https");
 
-urllib3.disable_warnings()
+module.exports = async (req, res) => {
+  const agent = new https.Agent({
+    rejectUnauthorized: false,
+  });
 
-app = Flask(__name__)
+  const options = {
+    hostname: "www.ticketmaster.co.il",
+    path: "/wbtxapi/api/v1/bxcached/event/getAllTopEvent/iw",
+    method: "GET",
+    agent,
+  };
 
-@app.route("/api/ticketmaster", methods=["GET"])
-def proxy():
-    try:
-        r = requests.get(
-            "https://www.ticketmaster.co.il/wbtxapi/api/v1/bxcached/event/getAllTopEvent/iw",
-            verify=False,
-            timeout=10
-        )
-        return jsonify(r.json())
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+  const request = https.request(options, (response) => {
+    let data = "";
+
+    response.on("data", (chunk) => (data += chunk));
+    response.on("end", () => {
+      try {
+        const json = JSON.parse(data);
+        res.status(200).json(json);
+      } catch (e) {
+        res.status(500).json({ error: "Invalid JSON from Ticketmaster" });
+      }
+    });
+  });
+
+  request.on("error", (error) => {
+    res.status(500).json({ error: error.message });
+  });
+
+  request.end();
+};
+
